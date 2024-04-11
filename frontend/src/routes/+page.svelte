@@ -1,30 +1,18 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { GoogleOAuthProvider, googleLogout } from "google-oauth-gsi";
-  import { jwtDecode } from "jwt-decode";
+  import { onMount } from "svelte";
 
   type Time = {
+    msg: string;
     time: string;
   };
 
-  type User = {
-    email: string;
-    name: string;
-    picture: string;
-    exp: number;
-  };
-
   let time: Promise<Time> | null = null;
-  
   let token: string | null = null;
-  let user: User | null = null;
-  $: user = token === null ? null : (jwtDecode(token) as User);
 
   async function fetchTime(): Promise<Time> {
     const response = await fetch("/api/time", {
-      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         Authorization: "Bearer " + token,
       },
     });
@@ -50,7 +38,7 @@
           use_fedcm_for_prompt: true,
           onSuccess: (res) => {
             token = res.credential || null;
-            console.log(token)
+            console.log(token);
             time = null;
           },
         })();
@@ -73,8 +61,9 @@
   {#await time}
     <div>Fetching time...</div>
   {:then time}
+    <div>{time.msg}</div>
     <div>Current time: {time.time}</div>
   {:catch err}
-    <div>Failed to fetch time: {err.status}, {err.statusText}</div>
+    <div>Failed to fetch time: {err.status} {err.statusText}</div>
   {/await}
 {/if}

@@ -7,18 +7,17 @@ use rocket::serde::json::Json;
 use serde::Serialize;
 use std::env;
 
-
 mod google;
 #[derive(Serialize)]
 struct Time {
+    msg: String,
     time: String,
 }
 
 #[get("/time")]
-fn time(
-    _claims: google::Claims
-) -> Result<Json<Time>, Status> {
+fn time(claims: google::Claims) -> Result<Json<Time>, Status> {
     Ok(Json(Time {
+        msg: format!("Hello, {}!", claims.name),
         time: chrono::Utc::now().to_rfc3339(),
     }))
 }
