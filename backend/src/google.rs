@@ -9,19 +9,16 @@ use std::error::Error;
 #[derive(Debug, Serialize, Deserialize)]
 struct Key {
     kid: String,
-    alg: String,
     n: String,
     e: String,
-    kty: String,
-    r#use: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Certs {
+pub struct Keys {
     keys: Vec<Key>,
 }
 
-impl Certs {
+impl Keys {
     pub fn get(&self, kid: &str) -> Result<DecodingKey, Box<dyn Error>> {
         for key in &self.keys {
             if key.kid == *kid {
@@ -32,19 +29,19 @@ impl Certs {
     }
 }
 
-pub fn parse(json: &str) -> Result<Certs, Box<dyn Error>> {
-    let certs: Certs = serde_json::from_str(json)?;
-    Ok(certs)
+pub fn parse(json: &str) -> Result<Keys, Box<dyn Error>> {
+    let keys: Keys = serde_json::from_str(json)?;
+    Ok(keys)
 }
 
-pub fn fetch() -> Result<Certs, Box<dyn Error>> {
+pub fn fetch() -> Result<Keys, Box<dyn Error>> {
     let client = reqwest::blocking::Client::new();
     let resp = client
         .get("https://www.googleapis.com/oauth2/v3/certs")
         .send()?
         .text()?;
-    let certs: Certs = parse(&resp)?;
-    Ok(certs)
+    let keys: Keys = parse(&resp)?;
+    Ok(keys)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -59,7 +56,7 @@ impl<'r> FromRequest<'r> for Claims {
     type Error = ();
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let Outcome::Success(certs) = request.guard::<&State<Certs>>().await else {
+        let Outcome::Success(goog_pub_keys) = request.guard::<&State<Keys>>().await else {
             return Outcome::Error((Status::InternalServerError, ()));
         };
         let Some(auth_header) = request.headers().get_one("Authorization") else {
@@ -76,7 +73,7 @@ impl<'r> FromRequest<'r> for Claims {
         let Some(kid) = header.kid else {
             return Outcome::Error((Status::Unauthorized, ()));
         };
-        let Ok(key) = certs.get(&kid) else {
+        let Ok(pub_key) = goog_pub_keys.get(&kid) else {
             return Outcome::Error((Status::Unauthorized, ()));
         };
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
@@ -84,7 +81,7 @@ impl<'r> FromRequest<'r> for Claims {
             "981002175662-g8jr2n89bptsn8n9ds1fn5edfheojr7i.apps.googleusercontent.com",
         ]);
         validation.set_issuer(&["https://accounts.google.com"]);
-        let Ok(token) = jsonwebtoken::decode::<Claims>(bearer, &key, &validation) else {
+        let Ok(token) = jsonwebtoken::decode::<Claims>(bearer, &pub_key, &validation) else {
             return Outcome::Error((Status::Unauthorized, ()));
         };
         Outcome::Success(Claims {

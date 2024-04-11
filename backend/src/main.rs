@@ -25,9 +25,9 @@ fn time(claims: google::Claims) -> Result<Json<Time>, Status> {
 #[launch]
 fn rocket() -> _ {
     env::set_var("ROCKET_PORT", env::var("PORT").unwrap_or("8000".into()));
-    let certs = google::fetch().unwrap();
+    let google_public_keys = google::fetch().unwrap();
     rocket::build()
-        .manage(certs)
+        .manage(google_public_keys)
         .mount("/api", routes![time])
         .mount("/", FileServer::from("./static"))
 }
