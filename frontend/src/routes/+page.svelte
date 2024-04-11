@@ -2,6 +2,26 @@
   import { GoogleOAuthProvider, googleLogout } from "google-oauth-gsi";
   import { onMount } from "svelte";
 
+  type Time = {
+    msg: string;
+    time: string;
+  };
+
+  let time: Promise<Time> | null = null;
+  let token: string | null = null;
+
+  async function fetchTime(): Promise<Time> {
+    const response = await fetch("/api/time", {
+      headers: {
+        Authorization: "Bearer " + token,
+      },
+    });
+    if (!response.ok) {
+      throw response;
+    }
+    return response.json();
+  }
+
   function logout() {
     googleLogout();
     token = null;
@@ -25,33 +45,11 @@
       },
     });
   });
-
-  type Time = {
-    msg: string;
-    time: string;
-  };
-
-  let time: Promise<Time> | null = null;
-  let token: string | null = null;
-
-  async function fetchTime(): Promise<Time> {
-    const response = await fetch("/api/time", {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
-    });
-    if (!response.ok) {
-      throw response;
-    }
-    return response.json();
-  }
 </script>
 
 <h1>Time Getter</h1>
 
-<div style={token === null ? "" : "display:none"}>
-  <div id="login-button"></div>
-</div>
+<div id="login-button" style={token === null ? "" : "display:none"} />
 
 {#if token !== null}
   <button on:click={() => logout()}>Logout</button>
